@@ -2,18 +2,24 @@ package com.viniciusdevassis.ficha.musical.domain.entities;
 
 import com.viniciusdevassis.ficha.musical.domain.enums.Role;
 import com.viniciusdevassis.ficha.musical.domain.enums.Status;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
+@Entity
+@Table(name = "tb_users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Setter(AccessLevel.PRIVATE)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class User {
+public class User implements UserDetails {
 
+    @Id
     @EqualsAndHashCode.Include
     private UUID id;
     private String name;
@@ -35,5 +41,35 @@ public class User {
         user.setRole(Role.STUDENT);
         user.setStatus(Status.ACTIVE);
         return user;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of();
+    }
+
+    @Override
+    public String getUsername() {
+        return "";
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return UserDetails.super.isAccountNonExpired();
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return UserDetails.super.isAccountNonLocked();
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return UserDetails.super.isCredentialsNonExpired();
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return UserDetails.super.isEnabled();
     }
 }
