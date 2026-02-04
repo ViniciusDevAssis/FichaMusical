@@ -11,7 +11,9 @@ import com.viniciusdevassis.ficha.musical.presentation.mappers.UserMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,5 +58,29 @@ public class AuthController {
         String token = this.tokenService.generateToken(registeredUser);
         ResponseDTO response = new ResponseDTO(registeredUser.getName(), token);
         return ResponseEntity.created(uri).body(response);
+    }
+
+    @PostMapping("/login/google")
+    public ResponseEntity<ResponseDTO> loginGoogle(@AuthenticationPrincipal OAuth2User principal) {
+        String email = principal.getAttribute("email");
+        String name = principal.getAttribute("name");
+
+        User user = repository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not registered with Google"));
+
+        String token = tokenService.generateToken(user);
+        return ResponseEntity.ok(new ResponseDTO(user.getName(), token));
+    }
+
+    @PostMapping("/register/google")
+    public ResponseEntity<ResponseDTO> registerGoogle(@AuthenticationPrincipal OAuth2User principal) {
+        String email = principal.getAttribute("email");
+        String name = principal.getAttribute("name");
+
+        User user = repository.findByEmail(email)
+                .orElseGet(() -> repository.save(User.newUser(name, email, "GOOGLE_LOGIN")));
+
+        String token = tokenService.generateToken(user);
+        return ResponseEntity.ok(new ResponseDTO(user.getName(), token));
     }
 }

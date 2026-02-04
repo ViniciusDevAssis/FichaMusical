@@ -1,5 +1,9 @@
 package com.viniciusdevassis.ficha.musical.infrastructure.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.viniciusdevassis.ficha.musical.domain.entities.User;
+import com.viniciusdevassis.ficha.musical.infrastructure.repositories.UserRepository;
+import com.viniciusdevassis.ficha.musical.presentation.dtos.ResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,35 +30,54 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService service;
     private final SecurityFilter filter;
+    private final UserRepository repository;
+    private final TokenService tokenService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(
-                        session ->
-                                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(
-                        authorize -> authorize
-                                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                                //.anyRequest().authenticated()
-                                .anyRequest().permitAll()
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                        .requestMatchers("/oauth2/**").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .addFilterBefore(
-                        filter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler((request, response, authentication) -> {
+                            var principal = (org.springframework.security.oauth2.core.user.OAuth2User) authentication.getPrincipal();
+                            String email = principal.getAttribute("email");
+                            String name = principal.getAttribute("name");
+
+                            // Cria ou atualiza usuário no banco
+                            User user = repository.findByEmail(email)
+                                    .orElseGet(() -> {
+                                        User novo = User.newUser(name, email, "GOOGLE_LOGIN");
+                                        return repository.save(novo);
+                                    });
+
+                            // Gera JWT
+                            String token = tokenService.generateToken(user);
+
+                            // Retorna JWT como JSON
+                            ResponseDTO dto = new ResponseDTO(name, token);
+                            new ObjectMapper().writeValue(response.getWriter(), dto);
+                        })
+                )
+                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedOrigins(List.of("*"));
         config.setAllowCredentials(true);
+        config.setAllowedHeaders(List.of("*"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
@@ -66,9 +89,8 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration authenticationConfiguration
-    ) throws Exception {
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 }
