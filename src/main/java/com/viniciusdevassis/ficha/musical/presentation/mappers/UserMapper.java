@@ -13,7 +13,7 @@ public interface UserMapper {
 
     User registerDTOToUser(RegisterDTO dto);
 
-    @Mapping(source = "nome", target = "name")
     ResponseDTO userToResponseDTO(User user);
+
     User responseDTOToUser(ResponseDTO dto);
 }

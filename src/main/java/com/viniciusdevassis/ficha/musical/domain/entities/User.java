@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "tb_users")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @Getter
 @Setter(AccessLevel.PRIVATE)
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
